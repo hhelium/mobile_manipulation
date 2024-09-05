@@ -1,0 +1,258 @@
+<?xml version="1.0"?>
+<!--
+Software License Agreement (BSD)
+
+\file      husky.urdf.xacro
+\authors   Paul Bovbel <pbovbel@clearpathrobotics.com>, Devon Ash <dash@clearpathrobotics.com>
+\copyright Copyright (c) 2015, Clearpath Robotics, Inc., All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that
+the following conditions are met:
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the
+   following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+   following disclaimer in the documentation and/or other materials provided with the distribution.
+ * Neither the name of Clearpath Robotics nor the names of its contributors may be used to endorse or promote
+   products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WAR-
+RANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, IN-
+DIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<robot name="husky_robot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Included URDF/XACRO Files -->
+  <xacro:include filename="$(find husky_description)/urdf/decorations.urdf.xacro" />
+  <xacro:include filename="$(find husky_description)/urdf/wheel.urdf.xacro" />
+
+  <xacro:include filename="$(find husky_description)/urdf/accessories/kinect_camera.urdf.xacro"/>
+  <xacro:include filename="$(find husky_description)/urdf/accessories/sick_lms1xx_mount.urdf.xacro"/>
+  <xacro:include filename="$(find husky_description)/urdf/accessories/sensor_arch.urdf.xacro"/>
+  <xacro:include filename="$(find ur_description)/urdf/ur5.urdf.xacro" />
+  <xacro:include filename="$(find robotiq_s_model_visualization)/cfg/robotiq_hand_macro.urdf.xacro"/> 
+  <xacro:include filename="$(find robotiq_force_torque_sensor)/urdf/robotiq_fts300.urdf.xacro"/>
+  <xacro:include filename="$(find flir_ptu_description)/urdf/d46.urdf.xacro"/>
+  <xacro:include filename="$(find pointgrey_camera_description)/urdf/pointgrey_bumblebee2.urdf.xacro"/>
+
+  <property name="M_PI" value="3.14159"/>
+
+  <!-- Base Size -->
+  <property name="base_x_size" value="0.98740000" />
+  <property name="base_y_size" value="0.57090000" />
+  <property name="base_z_size" value="0.24750000" />
+
+  <!-- Wheel Mounting Positions -->
+  <xacro:property name="wheelbase" value="0.5120" />
+  <xacro:property name="track" value="0.5708" />
+  <xacro:property name="wheel_vertical_offset" value="0.03282" />
+
+  <!-- Wheel Properties -->
+  <xacro:property name="wheel_length" value="0.1143" />
+  <xacro:property name="wheel_radius" value="0.17775" />
+
+  <xacro:macro name="husky_robot">
+
+    <!-- Base link is the center of the robot's bottom plate -->
+    <link name="base_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://husky_description/meshes/base_link.dae" />
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${base_z_size/4}" rpy="0 0 0" />
+        <geometry>
+          <box size="${base_x_size} ${base_y_size} ${base_z_size/2}"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0 0 ${base_z_size*3/4}" rpy="0 0 0" />
+        <geometry>
+          <box size="${base_x_size*4/5} ${base_y_size} ${base_z_size/2}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- Base footprint is on the ground under the robot -->
+    <link name="base_footprint"/>
+
+    <joint name="base_footprint_joint" type="fixed">
+      <origin xyz="0 0 ${wheel_vertical_offset - wheel_radius}" rpy="0 0 0" />
+      <parent link="base_link" />
+      <child link="base_footprint" />
+    </joint>
+
+    <!-- Interial link stores the robot's inertial information --> 
+    <link name="inertial_link">
+      <inertial>
+        <mass value="46.034"/>
+        <origin xyz="-0.00065 -0.085 0.062" />
+        <inertia ixx="0.6022" ixy="-0.02364" ixz="-0.1197" iyy="1.7386" iyz="-0.001544" izz="2.0296" />
+      </inertial>
+    </link>
+
+    <joint name="inertial_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <parent link="base_link" />
+      <child link="inertial_link" />
+    </joint> 
+
+    <!-- IMU Link is the standard mounting position for the UM6 IMU.-->
+    <!-- Can be modified with environment variables in /etc/ros/setup.bash -->
+    <link name="imu_link"/>
+    <joint name="imu_joint" type="fixed">
+      <origin xyz="$(optenv HUSKY_IMU_XYZ 0.11 0 0.424)" rpy="$(optenv HUSKY_IMU_RPY 0 0 0)" />
+      <parent link="base_link" />
+      <child link="imu_link" />
+    </joint>
+    <gazebo reference="imu_link">
+    </gazebo>
+
+    <!-- Husky wheel macros -->
+    <xacro:husky_wheel wheel_prefix="front_left">
+      <origin xyz="${wheelbase/2} ${track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
+    </xacro:husky_wheel>
+    <xacro:husky_wheel wheel_prefix="front_right">
+      <origin xyz="${wheelbase/2} ${-track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
+    </xacro:husky_wheel>
+    <xacro:husky_wheel wheel_prefix="rear_left">
+      <origin xyz="${-wheelbase/2} ${track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
+    </xacro:husky_wheel>
+    <xacro:husky_wheel wheel_prefix="rear_right">
+      <origin xyz="${-wheelbase/2} ${-track/2} ${wheel_vertical_offset}" rpy="0 0 0" />
+    </xacro:husky_wheel>
+
+    <xacro:husky_decorate />
+
+    <xacro:if value="$(optenv FLIR_PTU_ENABLED true)">
+
+          <xacro:ptu_d46 name="husky_ptu"/>
+          <!-- Connect PTU to Husky bulkhead -->
+          <joint name="husky_ptu_joint" type="fixed">
+             <origin xyz="0.365 0 0.20" rpy="0 0 0"/>
+             <parent link="dual_arm_bulkhead_link" />
+             <child link="husky_ptu_base_link" /> 
+         </joint>
+
+    </xacro:if>
+
+    <xacro:if value="$(optenv HUSKY_DUAL_UR5_ENABLED true)">
+
+        <xacro:ur5_robot prefix="l_ur5_arm_" joint_limited="true"/>
+        <xacro:ur5_robot prefix="r_ur5_arm_" joint_limited="true"/> 
+
+        <!-- Add laser specifically for this mode -->
+        <sick_lms1xx frame="base_laser" topic="scan" />
+
+        <!-- This offset is from the base of the bracket to the LIDAR's focal point. -->
+        <joint name="base_laser_joint" type="fixed">
+           <origin xyz="0.465 0 -0.085" rpy="${M_PI} 0 0" />
+           <parent link="dual_arm_bulkhead_link" />
+           <child link="base_laser" />
+        </joint>
+
+        <!-- Add bumblebee camera -->
+       <BB2-08S2C-38 frame="bumblebee2" name="bumblebee2" />
+
+        <joint name="bumblebee2_mount_joint" type="fixed">
+           <origin xyz="0 0 0.00" rpy="0 0 0" />
+           <parent link="husky_ptu_mount_link" />
+           <child link="bumblebee2" />
+        </joint>
+
+       <xacro:if value="$(optenv ROBOTIQ_GRIPPERS_WITH_FT_ENABLED false)">
+
+            <!-- Add force torque model FT300 -->
+            <xacro:robotiq_fts300 parent="l_ur5_arm_ee_link" prefix="l_robotiq_fts300_">
+               <origin xyz="0 0 0" rpy="0 1.57 0"/>
+            </xacro:robotiq_fts300>
+
+            <xacro:robotiq_fts300 parent="r_ur5_arm_ee_link" prefix="r_robotiq_fts300_">
+               <origin xyz="0 0 0" rpy="0 1.57 0"/>
+            </xacro:robotiq_fts300> 
+
+              <xacro:robotiq_hand prefix="l_" reflect="1" parent="l_robotiq_fts300_toolside">
+                 <origin xyz="0 0 0.08" rpy="1.57 0 0"/>
+              </xacro:robotiq_hand>
+ 
+              <xacro:robotiq_hand prefix="r_" reflect="1" parent="r_robotiq_fts300_toolside">
+                 <origin xyz="0 0 0.08" rpy="1.57 0 0"/>
+              </xacro:robotiq_hand>
+
+       </xacro:if>
+
+       <xacro:if value="$(optenv ROBOTIQ_GRIPPERS_ENABLED true)">
+ 
+              <xacro:robotiq_hand prefix="l_" reflect="1" parent="l_ur5_arm_ee_link">
+                 <origin xyz="0.05 0 0" rpy="1.57 1.57 0"/>
+              </xacro:robotiq_hand>
+              <xacro:robotiq_hand prefix="r_" reflect="1" parent="r_ur5_arm_ee_link">
+                 <origin xyz="0.05 0 0" rpy="1.57 1.57 0"/>
+              </xacro:robotiq_hand>
+
+       </xacro:if>
+
+        <!-- Join left arm to top plate -->
+        <joint name="r_ur5_arm_base" type="fixed">
+            <parent link="dual_arm_bulkhead_link"/>
+            <child link="r_ur5_arm_base_link" />
+            <origin xyz="0.125 -0.15 0.135" rpy="0 0.785 -1.57"/>
+        </joint>
+       
+         <!-- Joint right arm to top plate -->
+        <joint name="l_ur5_arm_base" type="fixed">
+            <parent link="dual_arm_bulkhead_link"/>
+            <child link="l_ur5_arm_base_link" />
+            <origin xyz="0.125 0.15 0.135" rpy="0 -0.785 -1.57"/>
+        </joint>
+    
+    </xacro:if>
+
+  </xacro:macro>
+   <!-- Collision prevention boxes to prevent hitting the cables -->
+  <link name="l_gripper_protection_box">
+    <visual>
+      <origin xyz="0.04 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.09 0.10 0.07" rpy="0 0 0" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.04 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.09 0.10 0.07" />
+      </geometry>
+    </collision>
+  </link>
+  <!-- Collision prevention boxes to prevent hitting the cables -->
+  <link name="r_gripper_protection_box">
+    <visual>
+      <origin xyz="0.04 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.09 0.10 0.07" rpy="0 0 0" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.04 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.09 0.10 0.07" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="l_gripper_protection" type="fixed">
+    <parent link="l_palm" />
+    <child link="l_gripper_protection_box" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+  <!-- Attach the boxes to the gripper to prevent collisions -->
+  <joint name="r_gripper_protection" type="fixed">
+    <parent link="r_palm" />
+    <child link="r_gripper_protection_box" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+</robot>
